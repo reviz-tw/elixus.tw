@@ -16,7 +16,7 @@
   <footer class="post-footer">
     {{ with .Params.tags }}
     <div class="post-tags">
-      {{ range . }}<a href="{{ "/tags/" | relURL }}{{ . | urlize }}/">{{ . }}</a>{{ end }}
+      {{ range . }}<a href="{{ printf "tags/%s/" (. | urlize) | relURL }}">{{ . }}</a>{{ end }}
     </div>
     {{ end }}
     {{ if or .NextInSection .PrevInSection }}
