@@ -1,0 +1,12 @@
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p class="footer-tagline">{{ .Site.Params.tagline }}</p>
+    <p class="footer-meta">
+      <span>© {{ now.Year }} {{ .Site.Params.author }}</span>
+      <span class="sep">·</span>
+      <a href="{{ "/index.xml" | relURL }}">RSS</a>
+      <span class="sep">·</span>
+      <span>無第三方追蹤</span>
+    </p>
+  </div>
+</footer>

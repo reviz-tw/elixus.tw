@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elixus · 編輯室</title>
+<style>
+  :root {
+    --bg:#0a0c0e; --bg-soft:#101316; --surface:#14181c; --line:#1f262c;
+    --fg:#b9bdc4; --fg-dim:#6c727b; --fg-faint:#444a52;
+    --accent:#a8893f; --accent-dim:#7a6531;
+    --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    --serif:"Noto Serif TC","Songti TC",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--fg); font-family:var(--sans); display:flex; flex-direction:column; overflow:hidden; }
+
+  header {
+    display:flex; align-items:center; gap:1rem; padding:0.7rem 1.2rem;
+    border-bottom:1px solid var(--line); background:var(--bg-soft); flex-shrink:0;
+  }
+  .brand { font-family:var(--mono); letter-spacing:0.25em; text-transform:uppercase;
+    font-size:0.75rem; color:var(--accent); display:flex; align-items:center; gap:0.5rem; }
+  .brand .dot { width:10px; height:10px; border:1.5px solid var(--accent); border-radius:50%; position:relative; }
+  .brand .dot::after { content:""; position:absolute; inset:2.5px; background:var(--accent); border-radius:50%; }
+  .badge { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.1em; color:var(--fg-faint);
+    border:1px solid var(--line); border-radius:999px; padding:0.15rem 0.6rem; }
+  header .spacer { flex:1; }
+  .status { font-family:var(--mono); font-size:0.7rem; color:var(--fg-dim); min-width:6rem; text-align:right; }
+
+  button {
+    font-family:var(--mono); font-size:0.72rem; letter-spacing:0.05em;
+    background:var(--surface); color:var(--fg); border:1px solid var(--line);
+    border-radius:5px; padding:0.4rem 0.9rem; cursor:pointer; transition:0.15s;
+  }
+  button:hover { border-color:var(--accent-dim); color:var(--accent); }
+  button.primary { border-color:var(--accent-dim); color:var(--accent); }
+  button.primary:hover { background:var(--accent); color:var(--bg); }
+
+  .layout { flex:1; display:flex; min-height:0; }
+
+  /* Sidebar */
+  aside {
+    width:240px; flex-shrink:0; border-right:1px solid var(--line);
+    background:var(--bg-soft); display:flex; flex-direction:column; min-height:0;
+  }
+  aside .head { padding:0.8rem 1rem; font-family:var(--mono); font-size:0.66rem;
+    letter-spacing:0.15em; text-transform:uppercase; color:var(--fg-faint);
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .post-list { overflow-y:auto; flex:1; }
+  .post-row { padding:0.7rem 1rem; border-bottom:1px solid var(--line); cursor:pointer; }
+  .post-row:hover { background:var(--surface); }
+  .post-row.active { background:var(--surface); border-left:2px solid var(--accent); padding-left:calc(1rem - 2px); }
+  .post-row .t { font-family:var(--serif); font-size:0.92rem; color:#cfd3d9; line-height:1.35; }
+  .post-row .m { font-family:var(--mono); font-size:0.62rem; color:var(--fg-faint); margin-top:0.3rem; display:flex; gap:0.5rem; }
+  .post-row .draft { color:var(--accent-dim); }
+
+  /* Editor pane */
+  .editor { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .meta { padding:0.9rem 1.2rem; border-bottom:1px solid var(--line); display:grid;
+    grid-template-columns:1fr 1fr; gap:0.6rem 1rem; background:var(--bg-soft); }
+  .meta .full { grid-column:1 / -1; }
+  .field { display:flex; flex-direction:column; gap:0.25rem; }
+  .field label { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--fg-faint); }
+  .field input[type=text] {
+    background:var(--surface); border:1px solid var(--line); border-radius:4px;
+    color:var(--fg); padding:0.45rem 0.6rem; font-family:var(--serif); font-size:0.95rem;
+  }
+  .field input:focus { outline:none; border-color:var(--accent-dim); }
+  .row-inline { display:flex; align-items:center; gap:1.2rem; }
+  .check { display:flex; align-items:center; gap:0.4rem; font-family:var(--mono); font-size:0.72rem; color:var(--fg-dim); }
+
+  .panes { flex:1; display:flex; min-height:0; }
+  textarea {
+    flex:1; width:50%; resize:none; border:none; outline:none;
+    background:var(--bg); color:var(--fg); padding:1.4rem 1.6rem;
+    font-family:var(--mono); font-size:0.9rem; line-height:1.8;
+    border-right:1px solid var(--line);
+  }
+  .preview {
+    flex:1; width:50%; overflow-y:auto; padding:1.4rem 1.8rem;
+    font-family:var(--serif); font-size:0.98rem; line-height:1.8; color:var(--fg);
+  }
+  .preview h1 { font-size:1.5rem; color:#dde0e5; font-weight:500; }
+  .preview h2 { font-size:1.25rem; color:#d2d6db; font-weight:500; margin-top:1.8rem; }
+  .preview h3 { font-size:1.05rem; color:#c8ccd2; }
+  .preview a { color:var(--accent); }
+  .preview strong { color:#d8dbe0; }
+  .preview blockquote { border-left:2px solid var(--accent-dim); padding-left:1rem; color:var(--fg-dim); font-style:italic; margin-left:0; }
+  .preview code { font-family:var(--mono); font-size:0.82em; background:var(--surface); padding:0.1em 0.35em; border-radius:3px; color:#c9ad6e; }
+  .preview pre { background:var(--bg-soft); border:1px solid var(--line); border-radius:6px; padding:1rem; overflow-x:auto; }
+  .preview pre code { background:none; padding:0; }
+  .preview hr { border:none; text-align:center; margin:2rem 0; }
+  .preview hr::before { content:"· · ·"; color:var(--fg-faint); letter-spacing:0.5em; }
+  .preview img { max-width:100%; border:1px solid var(--line); border-radius:4px; }
+  .preview ul, .preview ol { padding-left:1.3rem; }
+
+  .empty { flex:1; display:flex; align-items:center; justify-content:center; color:var(--fg-faint); font-family:var(--mono); font-size:0.8rem; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><span class="dot"></span>Elixus</span>
+  <span class="badge">編輯室 · 僅限本機</span>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button id="btn-new">＋ 新文章</button>
+  <button class="primary" id="btn-save">儲存 ⌘S</button>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="head"><span>文章</span><span id="count"></span></div>
+    <div class="post-list" id="postlist"></div>
+  </aside>
+
+  <div class="editor">
+    <div class="meta">
+      <div class="field full">
+        <label>標題</label>
+        <input type="text" id="f-title" placeholder="一個低調而誠實的標題">
+      </div>
+      <div class="field full">
+        <label>副標</label>
+        <input type="text" id="f-subtitle" placeholder="選填">
+      </div>
+      <div class="field">
+        <label>檔名 (slug，英文)</label>
+        <input type="text" id="f-file" placeholder="cloud-feudalism">
+      </div>
+      <div class="field">
+        <label>日期</label>
+        <input type="text" id="f-date" placeholder="2026-06-17">
+      </div>
+      <div class="field full">
+        <label>標籤 (逗號分隔)</label>
+        <input type="text" id="f-tags" placeholder="雲端封建, 資料自主">
+      </div>
+      <div class="field full row-inline">
+        <label class="check"><input type="checkbox" id="f-draft"> 草稿 (draft，不會發布)</label>
+      </div>
+    </div>
+    <div class="panes">
+      <textarea id="body" placeholder="在此寫下你的筆記……（支援 Markdown）" spellcheck="false"></textarea>
+      <div class="preview" id="preview"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let current = null; // current filename, null = new/unsaved
+
+// ---- minimal markdown preview (僅供預覽；正式渲染由 Hugo 負責) ----
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function inline(s){
+  return esc(s)
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img alt="$1" src="$2">')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g,'$1<em>$2</em>');
+}
+function md(src){
+  const lines = src.split('\n'); let out=[]; let i=0;
+  while(i<lines.length){
+    let l=lines[i];
+    if(/^```/.test(l)){ let buf=[]; i++; while(i<lines.length && !/^```/.test(lines[i])){ buf.push(esc(lines[i])); i++; } i++; out.push('<pre><code>'+buf.join('\n')+'</code></pre>'); continue; }
+    if(/^#{1,6}\s/.test(l)){ const n=l.match(/^#+/)[0].length; out.push('<h'+n+'>'+inline(l.replace(/^#+\s/,''))+'</h'+n+'>'); i++; continue; }
+    if(/^\s*[-*]{3,}\s*$/.test(l)){ out.push('<hr>'); i++; continue; }
+    if(/^>\s?/.test(l)){ let buf=[]; while(i<lines.length && /^>\s?/.test(lines[i])){ buf.push(inline(lines[i].replace(/^>\s?/,''))); i++; } out.push('<blockquote>'+buf.join('<br>')+'</blockquote>'); continue; }
+    if(/^\s*[-*]\s+/.test(l)){ let buf=[]; while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){ buf.push('<li>'+inline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>'); i++; } out.push('<ul>'+buf.join('')+'</ul>'); continue; }
+    if(/^\s*\d+\.\s+/.test(l)){ let buf=[]; while(i<lines.length && /^\s*\d+\.\s+/.test(lines[i])){ buf.push('<li>'+inline(lines[i].replace(/^\s*\d+\.\s+/,''))+'</li>'); i++; } out.push('<ol>'+buf.join('')+'</ol>'); continue; }
+    if(l.trim()===''){ i++; continue; }
+    let buf=[]; while(i<lines.length && lines[i].trim()!=='' && !/^(#{1,6}\s|>\s?|\s*[-*]\s+|\s*\d+\.\s+|```)/.test(lines[i])){ buf.push(inline(lines[i])); i++; }
+    out.push('<p>'+buf.join('<br>')+'</p>');
+  }
+  return out.join('\n');
+}
+function render(){ $('#preview').innerHTML = md($('#body').value); }
+
+// ---- API ----
+async function loadList(){
+  const r = await fetch('/api/posts'); const posts = await r.json();
+  const list = $('#postlist'); list.innerHTML='';
+  $('#count').textContent = (posts||[]).length;
+  (posts||[]).forEach(p=>{
+    const row=document.createElement('div');
+    row.className='post-row'+(p.file===current?' active':'');
+    row.innerHTML='<div class="t">'+esc(p.title||p.file)+'</div><div class="m"><span>'+(p.date||'')+'</span>'+(p.draft?'<span class="draft">草稿</span>':'')+'</div>';
+    row.onclick=()=>openPost(p.file);
+    list.appendChild(row);
+  });
+}
+async function openPost(file){
+  const r=await fetch('/api/post?file='+encodeURIComponent(file));
+  const p=await r.json();
+  if(p.error){ setStatus('讀取失敗: '+p.error); return; }
+  current=file;
+  $('#f-title').value=p.title||''; $('#f-subtitle').value=p.subtitle||'';
+  $('#f-file').value=file.replace(/\.md$/,''); $('#f-date').value=p.date||'';
+  $('#f-tags').value=(p.tags||[]).join(', '); $('#f-draft').checked=!!p.draft;
+  $('#body').value=p.body||''; render(); loadList(); setStatus('已開啟');
+}
+function newPost(){
+  current=null;
+  $('#f-title').value=''; $('#f-subtitle').value=''; $('#f-file').value='';
+  $('#f-date').value=new Date().toISOString().slice(0,10);
+  $('#f-tags').value=''; $('#f-draft').checked=true; $('#body').value=''; render();
+  loadList(); $('#f-title').focus(); setStatus('新文章');
+}
+async function save(){
+  const file=$('#f-file').value.trim();
+  if(!file){ setStatus('請填檔名 slug'); $('#f-file').focus(); return; }
+  const payload={
+    file, title:$('#f-title').value.trim(), subtitle:$('#f-subtitle').value.trim(),
+    date:$('#f-date').value.trim(), draft:$('#f-draft').checked,
+    tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+    body:$('#body').value,
+  };
+  const r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(d.error){ setStatus('儲存失敗: '+d.error); return; }
+  current=d.file; setStatus('已儲存 ✓'); loadList();
+}
+let statusTimer;
+function setStatus(s){ $('#status').textContent=s; clearTimeout(statusTimer); statusTimer=setTimeout(()=>$('#status').textContent='',3000); }
+
+$('#body').addEventListener('input', render);
+$('#btn-new').onclick=newPost;
+$('#btn-save').onclick=save;
+document.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='s'){ e.preventDefault(); save(); }});
+
+loadList();
+newPost();
+</script>
+</body>
+</html>

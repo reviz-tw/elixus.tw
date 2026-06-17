@@ -1,0 +1,15 @@
+{{ define "main" }}
+<section class="list-header">
+  <h1 class="hero-title">{{ .Title }}</h1>
+  <p class="hero-desc">沿著主題追索線索。</p>
+</section>
+
+<section class="term-cloud">
+  {{ range .Data.Terms.Alphabetical }}
+  <a class="term" href="{{ .Page.RelPermalink }}">
+    <span class="term-name">{{ .Page.Title }}</span>
+    <span class="term-count">{{ .Count }}</span>
+  </a>
+  {{ end }}
+</section>
+{{ end }}

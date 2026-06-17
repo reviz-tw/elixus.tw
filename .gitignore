@@ -1,0 +1,12 @@
+# Hugo build output
+/public/
+/resources/_gen/
+.hugo_build.lock
+
+# Hugo & OS noise
+.DS_Store
+*.log
+
+# editor 工具的編譯產物
+/tools/editor/editor
+/tools/editor/editor-bin

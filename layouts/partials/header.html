@@ -1,0 +1,13 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ "/" | relURL }}">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">{{ .Site.Title }}</span>
+    </a>
+    <nav class="site-nav">
+      <a href="{{ "/" | relURL }}">筆記</a>
+      <a href="{{ "/tags/" | relURL }}">主題</a>
+      <a href="{{ "/about/" | relURL }}">關於</a>
+    </nav>
+  </div>
+</header>

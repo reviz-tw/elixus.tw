@@ -1,0 +1,43 @@
+baseURL = "https://elixus.tw/"
+defaultContentLanguage = "zh-tw"
+title = "Elixus"
+
+[languages]
+  [languages.zh-tw]
+    label = "繁體中文"
+    locale = "zh_TW"
+    weight = 1
+
+# 時區與時間
+timeZone = "Asia/Taipei"
+
+# 摘要長度
+summaryLength = 60
+
+paginate = 8
+
+[params]
+  description = "關於數位身分、資料自主、雲端封建、社群網路與新聞媒體的筆記。"
+  author = "Elixus"
+  # 首頁副標 / 開場白
+  tagline = "在被擁有之前，先理解自己被如何擁有。"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    style = "nord"
+    noClasses = false
+    lineNos = false
+    tabWidth = 2
+
+[outputs]
+  home = ["HTML", "RSS"]
+  page = ["HTML"]
+
+[permalinks]
+  posts = "/:year/:month/:contentbasename/"
+
+[taxonomies]
+  tag = "tags"

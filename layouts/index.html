@@ -1,0 +1,27 @@
+{{ define "main" }}
+<section class="hero">
+  <h1 class="hero-title">{{ .Site.Params.tagline }}</h1>
+  <p class="hero-desc">{{ .Site.Params.description }}</p>
+</section>
+
+<section class="post-list">
+  {{ $pages := where .Site.RegularPages "Type" "posts" }}
+  {{ $paginator := .Paginate $pages }}
+  {{ range $paginator.Pages }}
+  <article class="post-item">
+    <div class="post-meta">
+      <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+      {{ with .Params.tags }}
+      <span class="post-tags">
+        {{ range first 3 . }}<a href="{{ "/tags/" | relURL }}{{ . | urlize }}/">{{ . }}</a>{{ end }}
+      </span>
+      {{ end }}
+    </div>
+    <h2 class="post-title"><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+    <p class="post-summary">{{ .Summary | plainify | truncate 140 }}</p>
+  </article>
+  {{ end }}
+
+  {{ template "_internal/pagination.html" . }}
+</section>
+{{ end }}

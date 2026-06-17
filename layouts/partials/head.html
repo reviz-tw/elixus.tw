@@ -1,0 +1,32 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+
+{{- $title := .Title -}}
+{{- if .IsHome -}}
+  {{- $title = .Site.Title -}}
+{{- else -}}
+  {{- $title = printf "%s — %s" .Title .Site.Title -}}
+{{- end -}}
+<title>{{ $title }}</title>
+
+{{- $desc := .Site.Params.description -}}
+{{- with .Description }}{{ $desc = . }}{{ end -}}
+{{- with .Summary }}{{ if not $.Site.Params.description }}{{ $desc = . }}{{ end }}{{ end -}}
+<meta name="description" content="{{ $desc | plainify | truncate 160 }}">
+<meta name="author" content="{{ .Site.Params.author }}">
+
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $desc | plainify | truncate 160 }}">
+<meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:site_name" content="{{ .Site.Title }}">
+
+{{- $css := resources.Get "css/main.css" | minify | fingerprint -}}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+
+{{ range .AlternativeOutputFormats -}}
+  <link rel="{{ .Rel }}" type="{{ .MediaType.Type }}" href="{{ .Permalink }}" title="{{ $.Site.Title }}">
+{{ end -}}
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0c0e'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23a8893f' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='1.5' fill='%23a8893f'/%3E%3C/svg%3E">
