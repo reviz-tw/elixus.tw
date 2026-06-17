@@ -7,10 +7,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -21,15 +25,16 @@ import (
 	"time"
 )
 
-//go:embed editor.html
+//go:embed editor.html vendor
 var assets embed.FS
 
 // All file operations are confined to these directories.
 //   postsDir   = content/posts  (section "posts")
 //   contentDir = content         (section "pages", e.g. about.md)
 var (
-	postsDir   string
-	contentDir string
+	postsDir        string
+	contentDir      string
+	staticImagesDir string // static/images — uploaded images land here
 )
 
 func main() {
@@ -57,8 +62,11 @@ func main() {
 	}
 	contentDir = filepath.Join(abs, "content")
 	postsDir = filepath.Join(contentDir, "posts")
-	if err := os.MkdirAll(postsDir, 0o755); err != nil {
-		log.Fatalf("cannot create posts dir %s: %v", postsDir, err)
+	staticImagesDir = filepath.Join(abs, "static", "images")
+	for _, d := range []string{postsDir, staticImagesDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			log.Fatalf("cannot create dir %s: %v", d, err)
+		}
 	}
 
 	// Refuse to bind anything but loopback — this editor must stay local.
@@ -72,6 +80,15 @@ func main() {
 	mux.HandleFunc("/api/posts", handleList)
 	mux.HandleFunc("/api/post", handleLoad)
 	mux.HandleFunc("/api/save", handleSave)
+	mux.HandleFunc("/api/upload", handleUpload)
+
+	// vendored editor assets (Toast UI Editor) — embedded, no CDN
+	if sub, err := fs.Sub(assets, "vendor"); err == nil {
+		mux.Handle("/vendor/", http.StripPrefix("/vendor/", http.FileServer(http.FS(sub))))
+	}
+	// serve uploaded images so they display live in the editor; on the built
+	// site Hugo serves the same files from static/images at /images/
+	mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(staticImagesDir))))
 
 	log.Printf("Elixus editor → http://%s", *addr)
 	log.Printf("posts: %s", postsDir)
@@ -226,6 +243,71 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"section": p.Section, "file": p.File, "status": "saved"})
+}
+
+// allowed image extensions for upload
+var imageExt = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true,
+	".webp": true, ".avif": true, ".svg": true,
+}
+
+// handleUpload accepts a pasted/dropped image (multipart field "image"),
+// stores it under static/images with a content-addressed name, and returns
+// the site-relative URL to embed in markdown.
+func handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		writeErr(w, err)
+		return
+	}
+	file, hdr, err := r.FormFile("image")
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, 32<<20))
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(hdr.Filename))
+	if ext == "" {
+		ext = extFromContentType(hdr.Header.Get("Content-Type"))
+	}
+	if !imageExt[ext] {
+		writeErr(w, fmt.Errorf("不支援的圖片格式: %q", ext))
+		return
+	}
+	sum := sha256.Sum256(data)
+	name := "img-" + hex.EncodeToString(sum[:])[:12] + ext
+	if err := os.WriteFile(filepath.Join(staticImagesDir, name), data, 0o644); err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, map[string]string{"url": "/images/" + name})
+}
+
+func extFromContentType(ct string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0])) {
+	case "image/png":
+		return ".png"
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "image/avif":
+		return ".avif"
+	case "image/svg+xml":
+		return ".svg"
+	}
+	return ""
 }
 
 // safePath resolves name relative to the section's directory and rejects

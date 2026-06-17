@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elixus · 編輯室</title>
+<link rel="stylesheet" href="/vendor/toastui-editor.min.css">
+<link rel="stylesheet" href="/vendor/toastui-editor-dark.css">
 <style>
   :root {
     --bg:#0a0c0e; --bg-soft:#101316; --surface:#14181c; --line:#1f262c;
@@ -77,32 +79,15 @@
   .post-group { padding:0.5rem 1rem 0.3rem; font-family:var(--mono); font-size:0.6rem;
     letter-spacing:0.16em; text-transform:uppercase; color:var(--fg-faint); }
 
-  .panes { flex:1; display:flex; min-height:0; }
-  textarea {
-    flex:1; width:50%; resize:none; border:none; outline:none;
-    background:var(--bg); color:var(--fg); padding:1.4rem 1.6rem;
-    font-family:var(--mono); font-size:0.9rem; line-height:1.8;
-    border-right:1px solid var(--line);
-  }
-  .preview {
-    flex:1; width:50%; overflow-y:auto; padding:1.4rem 1.8rem;
-    font-family:var(--serif); font-size:0.98rem; line-height:1.8; color:var(--fg);
-  }
-  .preview h1 { font-size:1.5rem; color:#dde0e5; font-weight:500; }
-  .preview h2 { font-size:1.25rem; color:#d2d6db; font-weight:500; margin-top:1.8rem; }
-  .preview h3 { font-size:1.05rem; color:#c8ccd2; }
-  .preview a { color:var(--accent); }
-  .preview strong { color:#d8dbe0; }
-  .preview blockquote { border-left:2px solid var(--accent-dim); padding-left:1rem; color:var(--fg-dim); font-style:italic; margin-left:0; }
-  .preview code { font-family:var(--mono); font-size:0.82em; background:var(--surface); padding:0.1em 0.35em; border-radius:3px; color:#c9ad6e; }
-  .preview pre { background:var(--bg-soft); border:1px solid var(--line); border-radius:6px; padding:1rem; overflow-x:auto; }
-  .preview pre code { background:none; padding:0; }
-  .preview hr { border:none; text-align:center; margin:2rem 0; }
-  .preview hr::before { content:"· · ·"; color:var(--fg-faint); letter-spacing:0.5em; }
-  .preview img { max-width:100%; border:1px solid var(--line); border-radius:4px; }
-  .preview ul, .preview ol { padding-left:1.3rem; }
-
-  .empty { flex:1; display:flex; align-items:center; justify-content:center; color:var(--fg-faint); font-family:var(--mono); font-size:0.8rem; }
+  /* Toast UI Editor 佔滿剩餘空間 */
+  #editor { flex:1; min-height:0; }
+  .toastui-editor-defaultUI { border:none !important; }
+  /* 收斂編輯器配色，貼近站台的黯金低調感 */
+  .toastui-editor-dark .toastui-editor-defaultUI { background:var(--bg); }
+  .toastui-editor-dark .toastui-editor-defaultUI-toolbar { background:var(--bg-soft); border-bottom:1px solid var(--line); }
+  .toastui-editor-dark .toastui-editor-md-container,
+  .toastui-editor-dark .toastui-editor-ww-container { background:var(--bg); }
+  .toastui-editor-dark .ProseMirror { font-family:var(--serif); }
 </style>
 </head>
 <body>
@@ -151,46 +136,43 @@
         <label class="check"><input type="checkbox" id="f-draft"> 草稿 (draft，不會發布)</label>
       </div>
     </div>
-    <div class="panes">
-      <textarea id="body" placeholder="在此寫下你的筆記……（支援 Markdown）" spellcheck="false"></textarea>
-      <div class="preview" id="preview"></div>
-    </div>
+    <div id="editor"></div>
   </div>
 </div>
 
+<script src="/vendor/toastui-editor-all.min.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let current = null;          // {section, file} of the open file, null = new/unsaved
 let curSection = 'posts';    // section the current draft will be saved into
 const SECTION_LABEL = { posts: '文章 · posts/', pages: '頁面 · content/' };
 
-// ---- minimal markdown preview (僅供預覽；正式渲染由 Hugo 負責) ----
-function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function inline(s){
-  return esc(s)
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img alt="$1" src="$2">')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>')
-    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-    .replace(/(^|[^*])\*([^*]+)\*/g,'$1<em>$2</em>');
-}
-function md(src){
-  const lines = src.split('\n'); let out=[]; let i=0;
-  while(i<lines.length){
-    let l=lines[i];
-    if(/^```/.test(l)){ let buf=[]; i++; while(i<lines.length && !/^```/.test(lines[i])){ buf.push(esc(lines[i])); i++; } i++; out.push('<pre><code>'+buf.join('\n')+'</code></pre>'); continue; }
-    if(/^#{1,6}\s/.test(l)){ const n=l.match(/^#+/)[0].length; out.push('<h'+n+'>'+inline(l.replace(/^#+\s/,''))+'</h'+n+'>'); i++; continue; }
-    if(/^\s*[-*]{3,}\s*$/.test(l)){ out.push('<hr>'); i++; continue; }
-    if(/^>\s?/.test(l)){ let buf=[]; while(i<lines.length && /^>\s?/.test(lines[i])){ buf.push(inline(lines[i].replace(/^>\s?/,''))); i++; } out.push('<blockquote>'+buf.join('<br>')+'</blockquote>'); continue; }
-    if(/^\s*[-*]\s+/.test(l)){ let buf=[]; while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){ buf.push('<li>'+inline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>'); i++; } out.push('<ul>'+buf.join('')+'</ul>'); continue; }
-    if(/^\s*\d+\.\s+/.test(l)){ let buf=[]; while(i<lines.length && /^\s*\d+\.\s+/.test(lines[i])){ buf.push('<li>'+inline(lines[i].replace(/^\s*\d+\.\s+/,''))+'</li>'); i++; } out.push('<ol>'+buf.join('')+'</ol>'); continue; }
-    if(l.trim()===''){ i++; continue; }
-    let buf=[]; while(i<lines.length && lines[i].trim()!=='' && !/^(#{1,6}\s|>\s?|\s*[-*]\s+|\s*\d+\.\s+|```)/.test(lines[i])){ buf.push(inline(lines[i])); i++; }
-    out.push('<p>'+buf.join('<br>')+'</p>');
+// ---- Toast UI Editor (WYSIWYG, markdown-backed) ----
+const editor = new toastui.Editor({
+  el: $('#editor'),
+  height: '100%',
+  initialEditType: 'wysiwyg',
+  previewStyle: 'tab',
+  theme: 'dark',
+  usageStatistics: false,   // 關閉 TUI 預設會送出的主機名統計 ping（資料自主）
+  placeholder: '在此寫下你的筆記……貼上或拖曳圖片即可插入。',
+  hooks: {
+    addImageBlobHook: async (blob, callback) => {
+      const fd = new FormData();
+      fd.append('image', blob, blob.name || 'pasted.png');
+      try {
+        const r = await fetch('/api/upload', { method:'POST', body: fd });
+        const d = await r.json();
+        if (d.error) { setStatus('圖片上傳失敗: ' + d.error); return false; }
+        callback(d.url, '');
+      } catch (e) { setStatus('圖片上傳失敗: ' + e); }
+      return false;
+    }
   }
-  return out.join('\n');
-}
-function render(){ $('#preview').innerHTML = md($('#body').value); }
+});
+
+// 側邊欄標題用的 HTML 轉義
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // 切換目前草稿所屬區段，連帶調整介面（頁面不需要標籤／草稿）
 function applySection(section){
@@ -233,7 +215,7 @@ async function openPost(section, file){
   $('#f-title').value=p.title||''; $('#f-subtitle').value=p.subtitle||'';
   $('#f-file').value=file.replace(/\.md$/,''); $('#f-date').value=p.date||'';
   $('#f-tags').value=(p.tags||[]).join(', '); $('#f-draft').checked=!!p.draft;
-  $('#body').value=p.body||''; render(); loadList(); setStatus('已開啟');
+  editor.setMarkdown(p.body||''); loadList(); setStatus('已開啟');
 }
 function newItem(section){
   current=null;
@@ -241,7 +223,7 @@ function newItem(section){
   $('#f-title').value=''; $('#f-subtitle').value=''; $('#f-file').value='';
   $('#f-date').value=new Date().toISOString().slice(0,10);
   $('#f-tags').value=''; $('#f-draft').checked = section==='posts'; // 頁面預設發布
-  $('#body').value=''; render();
+  editor.setMarkdown('');
   loadList(); $('#f-title').focus(); setStatus(section==='pages'?'新頁面':'新文章');
 }
 async function save(){
@@ -253,7 +235,7 @@ async function save(){
     date:$('#f-date').value.trim(),
     draft: curSection==='posts' ? $('#f-draft').checked : false,
     tags: curSection==='posts' ? $('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean) : [],
-    body:$('#body').value,
+    body: editor.getMarkdown(),
   };
   const r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d=await r.json();
@@ -263,7 +245,6 @@ async function save(){
 let statusTimer;
 function setStatus(s){ $('#status').textContent=s; clearTimeout(statusTimer); statusTimer=setTimeout(()=>$('#status').textContent='',3000); }
 
-$('#body').addEventListener('input', render);
 $('#btn-new-post').onclick=()=>newItem('posts');
 $('#btn-new-page').onclick=()=>newItem('pages');
 $('#btn-save').onclick=save;

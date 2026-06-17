@@ -19,12 +19,13 @@ make dev      # 同時啟動 Hugo 預覽 + 本地編輯器
 - Hugo 預覽：<http://localhost:1313>（含草稿）
 - 編輯器：<http://localhost:1314>（僅綁 127.0.0.1）
 
-在編輯器裡：
+編輯器是**所見即所得（WYSIWYG）**的，底層仍存成標準 Markdown：
 
 1. 「＋ 文章」開新文章；「＋ 頁面」開新獨立頁面（如「關於」）。
-2. 填標題、slug（英文檔名）等；文章另有標籤與草稿。內文用 Markdown，右側即時預覽。
-3. ⌘S（或按「儲存」）：文章寫入 `content/posts/<slug>.md`，頁面寫入 `content/<slug>.md`。
-4. 切回 <http://localhost:1313> 看 Hugo 實際渲染結果。
+2. 填標題、slug（英文檔名）等；文章另有標籤與草稿。內文直接打字、用工具列套用格式（也可切到右下角的 Markdown 模式手寫）。
+3. **圖片**：直接貼上（⌘V）或拖曳進編輯器，會自動存到 `static/images/`（內容雜湊命名）並插入 `![](/images/…)`。
+4. ⌘S（或按「儲存」）：文章寫入 `content/posts/<slug>.md`，頁面寫入 `content/<slug>.md`。
+5. 切回 <http://localhost:1313> 看 Hugo 實際渲染結果。
 
 左側清單會分「頁面」與「文章」兩區；點任一項即可載入編輯。
 
@@ -61,3 +62,11 @@ push 到 `main` 後，`.github/workflows/deploy.yml` 會自動以 Hugo build 並
 
 刻意低調、暗色、留白多。基於資料自主的主題，**不使用 Google Fonts 或任何第三方追蹤腳本**，
 全用系統字體。
+
+## 編輯器的第三方元件
+
+WYSIWYG 編輯體驗用 [Toast UI Editor](https://ui.toast.com/tui-editor)（MIT 授權），
+bundle 已**下載 vendor 進 `tools/editor/vendor/`**（非 CDN，可離線、無執行期第三方請求），
+並關閉它預設會送出的 `usageStatistics` 主機名統計。這些只存在於本機編輯器，**不會進入發布的靜態站台**。
+
+> 圖片以 `/images/…` 絕對路徑寫入 markdown，對應正式網域 `https://elixus.tw/` 的根路徑。
