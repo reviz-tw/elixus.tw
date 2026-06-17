@@ -24,9 +24,13 @@ import (
 //go:embed editor.html
 var assets embed.FS
 
-// contentDir is the absolute path to the Hugo posts directory. All file
-// operations are confined to this directory.
-var postsDir string
+// All file operations are confined to these directories.
+//   postsDir   = content/posts  (section "posts")
+//   contentDir = content         (section "pages", e.g. about.md)
+var (
+	postsDir   string
+	contentDir string
+)
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:1314", "address to bind (localhost only by design)")
@@ -51,7 +55,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot resolve blog root: %v", err)
 	}
-	postsDir = filepath.Join(abs, "content", "posts")
+	contentDir = filepath.Join(abs, "content")
+	postsDir = filepath.Join(contentDir, "posts")
 	if err := os.MkdirAll(postsDir, 0o755); err != nil {
 		log.Fatalf("cannot create posts dir %s: %v", postsDir, err)
 	}
@@ -90,6 +95,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 type postMeta struct {
+	Section  string   `json:"section"`
 	File     string   `json:"file"`
 	Title    string   `json:"title"`
 	Date     string   `json:"date"`
@@ -98,32 +104,62 @@ type postMeta struct {
 	Subtitle string   `json:"subtitle"`
 }
 
-func handleList(w http.ResponseWriter, r *http.Request) {
-	entries, err := os.ReadDir(postsDir)
-	if err != nil {
-		writeErr(w, err)
-		return
+// sectionDir maps a section name to its directory. Pages live directly in
+// content/, posts in content/posts/.
+func sectionDir(section string) (string, error) {
+	switch section {
+	case "posts":
+		return postsDir, nil
+	case "pages":
+		return contentDir, nil
+	default:
+		return "", fmt.Errorf("unknown section %q", section)
 	}
-	var posts []postMeta
+}
+
+func handleList(w http.ResponseWriter, r *http.Request) {
+	var items []postMeta
+	items = append(items, listSection("posts", postsDir, false)...)
+	items = append(items, listSection("pages", contentDir, true)...)
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Section != items[j].Section {
+			return items[i].Section < items[j].Section // pages before posts
+		}
+		return items[i].Date > items[j].Date
+	})
+	writeJSON(w, items)
+}
+
+// listSection reads .md files directly inside dir (never recursing into
+// subdirectories). When topLevelOnly is set, _index.md is skipped — those
+// are section index pages, not standalone content.
+func listSection(section, dir string, topLevelOnly bool) []postMeta {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []postMeta
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(postsDir, e.Name()))
+		if topLevelOnly && e.Name() == "_index.md" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			continue
 		}
 		fm, _ := parseFrontMatter(string(b))
+		fm.Section = section
 		fm.File = e.Name()
-		posts = append(posts, fm)
+		out = append(out, fm)
 	}
-	sort.Slice(posts, func(i, j int) bool {
-		return posts[i].Date > posts[j].Date
-	})
-	writeJSON(w, posts)
+	return out
 }
 
 type postPayload struct {
+	Section  string   `json:"section"`
 	File     string   `json:"file"`
 	Title    string   `json:"title"`
 	Date     string   `json:"date"`
@@ -134,8 +170,9 @@ type postPayload struct {
 }
 
 func handleLoad(w http.ResponseWriter, r *http.Request) {
+	section := r.URL.Query().Get("section")
 	name := r.URL.Query().Get("file")
-	path, err := safePath(name)
+	path, err := safePath(section, name)
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -147,6 +184,7 @@ func handleLoad(w http.ResponseWriter, r *http.Request) {
 	}
 	fm, body := parseFrontMatter(string(b))
 	writeJSON(w, postPayload{
+		Section:  section,
 		File:     name,
 		Title:    fm.Title,
 		Date:     fm.Date,
@@ -174,7 +212,7 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasSuffix(p.File, ".md") {
 		p.File += ".md"
 	}
-	path, err := safePath(p.File)
+	path, err := safePath(p.Section, p.File)
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -187,12 +225,16 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{"file": p.File, "status": "saved"})
+	writeJSON(w, map[string]string{"section": p.Section, "file": p.File, "status": "saved"})
 }
 
-// safePath resolves name relative to postsDir and rejects anything that
-// escapes it (path traversal guard).
-func safePath(name string) (string, error) {
+// safePath resolves name relative to the section's directory and rejects
+// anything that escapes it (path traversal guard).
+func safePath(section, name string) (string, error) {
+	dir, err := sectionDir(section)
+	if err != nil {
+		return "", err
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", fmt.Errorf("missing file name")
@@ -204,13 +246,12 @@ func safePath(name string) (string, error) {
 	if !strings.HasSuffix(name, ".md") {
 		name += ".md"
 	}
-	p := filepath.Join(postsDir, name)
-	abs, err := filepath.Abs(p)
+	abs, err := filepath.Abs(filepath.Join(dir, name))
 	if err != nil {
 		return "", err
 	}
-	if !strings.HasPrefix(abs, postsDir+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path escapes posts dir")
+	if !strings.HasPrefix(abs, dir+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path escapes %s dir", section)
 	}
 	return abs, nil
 }

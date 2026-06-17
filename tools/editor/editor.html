@@ -72,6 +72,10 @@
   .field input:focus { outline:none; border-color:var(--accent-dim); }
   .row-inline { display:flex; align-items:center; gap:1.2rem; }
   .check { display:flex; align-items:center; gap:0.4rem; font-family:var(--mono); font-size:0.72rem; color:var(--fg-dim); }
+  .seg { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--accent); border:1px solid var(--accent-dim); border-radius:999px; padding:0.2rem 0.7rem; }
+  .post-group { padding:0.5rem 1rem 0.3rem; font-family:var(--mono); font-size:0.6rem;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--fg-faint); }
 
   .panes { flex:1; display:flex; min-height:0; }
   textarea {
@@ -107,18 +111,22 @@
   <span class="badge">編輯室 · 僅限本機</span>
   <span class="spacer"></span>
   <span class="status" id="status"></span>
-  <button id="btn-new">＋ 新文章</button>
+  <button id="btn-new-post">＋ 文章</button>
+  <button id="btn-new-page">＋ 頁面</button>
   <button class="primary" id="btn-save">儲存 ⌘S</button>
 </header>
 
 <div class="layout">
   <aside>
-    <div class="head"><span>文章</span><span id="count"></span></div>
+    <div class="head"><span>內容</span><span id="count"></span></div>
     <div class="post-list" id="postlist"></div>
   </aside>
 
   <div class="editor">
     <div class="meta">
+      <div class="field full row-inline">
+        <span id="f-section-label" class="seg">文章 · posts/</span>
+      </div>
       <div class="field full">
         <label>標題</label>
         <input type="text" id="f-title" placeholder="一個低調而誠實的標題">
@@ -135,11 +143,11 @@
         <label>日期</label>
         <input type="text" id="f-date" placeholder="2026-06-17">
       </div>
-      <div class="field full">
+      <div class="field full" id="wrap-tags">
         <label>標籤 (逗號分隔)</label>
         <input type="text" id="f-tags" placeholder="雲端封建, 資料自主">
       </div>
-      <div class="field full row-inline">
+      <div class="field full row-inline" id="wrap-draft">
         <label class="check"><input type="checkbox" id="f-draft"> 草稿 (draft，不會發布)</label>
       </div>
     </div>
@@ -152,7 +160,9 @@
 
 <script>
 const $ = s => document.querySelector(s);
-let current = null; // current filename, null = new/unsaved
+let current = null;          // {section, file} of the open file, null = new/unsaved
+let curSection = 'posts';    // section the current draft will be saved into
+const SECTION_LABEL = { posts: '文章 · posts/', pages: '頁面 · content/' };
 
 // ---- minimal markdown preview (僅供預覽；正式渲染由 Hugo 負責) ----
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -182,60 +192,85 @@ function md(src){
 }
 function render(){ $('#preview').innerHTML = md($('#body').value); }
 
+// 切換目前草稿所屬區段，連帶調整介面（頁面不需要標籤／草稿）
+function applySection(section){
+  curSection = section;
+  $('#f-section-label').textContent = SECTION_LABEL[section] || section;
+  const isPost = section === 'posts';
+  $('#wrap-tags').style.display  = isPost ? '' : 'none';
+  $('#wrap-draft').style.display = isPost ? '' : 'none';
+}
+
 // ---- API ----
 async function loadList(){
-  const r = await fetch('/api/posts'); const posts = await r.json();
+  const r = await fetch('/api/posts'); const items = await r.json() || [];
   const list = $('#postlist'); list.innerHTML='';
-  $('#count').textContent = (posts||[]).length;
-  (posts||[]).forEach(p=>{
+  $('#count').textContent = items.length;
+  let lastSection = null;
+  items.forEach(p=>{
+    if(p.section !== lastSection){
+      const h=document.createElement('div');
+      h.className='post-group';
+      h.textContent = p.section==='pages' ? '頁面' : '文章';
+      list.appendChild(h);
+      lastSection = p.section;
+    }
+    const active = current && current.section===p.section && current.file===p.file;
     const row=document.createElement('div');
-    row.className='post-row'+(p.file===current?' active':'');
-    row.innerHTML='<div class="t">'+esc(p.title||p.file)+'</div><div class="m"><span>'+(p.date||'')+'</span>'+(p.draft?'<span class="draft">草稿</span>':'')+'</div>';
-    row.onclick=()=>openPost(p.file);
+    row.className='post-row'+(active?' active':'');
+    const tail = p.section==='posts' && p.draft ? '<span class="draft">草稿</span>' : '';
+    row.innerHTML='<div class="t">'+esc(p.title||p.file)+'</div><div class="m"><span>'+(p.date||'')+'</span>'+tail+'</div>';
+    row.onclick=()=>openPost(p.section, p.file);
     list.appendChild(row);
   });
 }
-async function openPost(file){
-  const r=await fetch('/api/post?file='+encodeURIComponent(file));
+async function openPost(section, file){
+  const r=await fetch('/api/post?section='+encodeURIComponent(section)+'&file='+encodeURIComponent(file));
   const p=await r.json();
   if(p.error){ setStatus('讀取失敗: '+p.error); return; }
-  current=file;
+  current={section, file};
+  applySection(section);
   $('#f-title').value=p.title||''; $('#f-subtitle').value=p.subtitle||'';
   $('#f-file').value=file.replace(/\.md$/,''); $('#f-date').value=p.date||'';
   $('#f-tags').value=(p.tags||[]).join(', '); $('#f-draft').checked=!!p.draft;
   $('#body').value=p.body||''; render(); loadList(); setStatus('已開啟');
 }
-function newPost(){
+function newItem(section){
   current=null;
+  applySection(section);
   $('#f-title').value=''; $('#f-subtitle').value=''; $('#f-file').value='';
   $('#f-date').value=new Date().toISOString().slice(0,10);
-  $('#f-tags').value=''; $('#f-draft').checked=true; $('#body').value=''; render();
-  loadList(); $('#f-title').focus(); setStatus('新文章');
+  $('#f-tags').value=''; $('#f-draft').checked = section==='posts'; // 頁面預設發布
+  $('#body').value=''; render();
+  loadList(); $('#f-title').focus(); setStatus(section==='pages'?'新頁面':'新文章');
 }
 async function save(){
   const file=$('#f-file').value.trim();
   if(!file){ setStatus('請填檔名 slug'); $('#f-file').focus(); return; }
   const payload={
+    section: curSection,
     file, title:$('#f-title').value.trim(), subtitle:$('#f-subtitle').value.trim(),
-    date:$('#f-date').value.trim(), draft:$('#f-draft').checked,
-    tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+    date:$('#f-date').value.trim(),
+    draft: curSection==='posts' ? $('#f-draft').checked : false,
+    tags: curSection==='posts' ? $('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean) : [],
     body:$('#body').value,
   };
   const r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d=await r.json();
   if(d.error){ setStatus('儲存失敗: '+d.error); return; }
-  current=d.file; setStatus('已儲存 ✓'); loadList();
+  current={section:d.section, file:d.file}; setStatus('已儲存 ✓'); loadList();
 }
 let statusTimer;
 function setStatus(s){ $('#status').textContent=s; clearTimeout(statusTimer); statusTimer=setTimeout(()=>$('#status').textContent='',3000); }
 
 $('#body').addEventListener('input', render);
-$('#btn-new').onclick=newPost;
+$('#btn-new-post').onclick=()=>newItem('posts');
+$('#btn-new-page').onclick=()=>newItem('pages');
 $('#btn-save').onclick=save;
 document.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='s'){ e.preventDefault(); save(); }});
 
 loadList();
-newPost();
+newItem('posts');
 </script>
 </body>
 </html>
