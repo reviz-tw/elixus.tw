@@ -37,15 +37,15 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
+      # baseURL 由 hugo.toml 提供 (https://blog.elixus.tw/)；不要用
+      # steps.pages.outputs.base_url 覆蓋，否則自訂網域沒被辨識時會退回
+      # 專案子路徑 …/elixus.tw/，導致資產路徑多一段而 404。
       - name: Build with Hugo
         env:
           HUGO_ENVIRONMENT: production
           HUGO_ENV: production
         run: |
-          hugo \
-            --minify \
-            --gc \
-            --baseURL "${{ steps.pages.outputs.base_url }}/"
+          hugo --minify --gc
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
