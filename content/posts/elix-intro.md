@@ -5,8 +5,7 @@ draft = false
 tags = []
 +++
 
-![](/images/img-c6675fc7aa98.png)
-
+![](/images/img-9d831acbe1ac.jpg)
 從 Twitter，Plurk，Facebook，IG，到台灣人特別偏愛的 Threads，為什麼我們還需要另一個社群媒體？！
 
 有些人會以 AI 的方式來說，「也許我們一個需要台灣人的社群媒體」。但我對於這個說法卻不是太有感，而是我們希望一個更為使用者打造的社群媒體。
