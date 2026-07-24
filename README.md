@@ -60,8 +60,8 @@ push 到 `main` 後，`.github/workflows/deploy.yml` 會自動以 Hugo build 並
 
 ## 設計
 
-刻意低調、暗色、留白多。基於資料自主的主題，**不使用 Google Fonts 或任何第三方追蹤腳本**，
-全用系統字體。
+刻意低調、暗色、留白多。不使用 Google Fonts，全用系統字體；網站使用 Google Analytics
+（測量 ID：`G-JWW6BBQLTB`）進行流量分析。
 
 ## 編輯器的第三方元件
 
