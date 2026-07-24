@@ -1,5 +1,6 @@
 +++
 title = "都 2026 年了，還想打造新社群軟體？"
+author = "hcchien"
 date = 2026-07-23
 draft = false
 tags = []

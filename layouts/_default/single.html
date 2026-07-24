@@ -3,6 +3,7 @@
   <header class="post-header">
     <div class="post-meta">
       <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+      {{ with .Params.author }}<span class="sep">·</span><span>{{ . }}</span>{{ end }}
       {{ with .ReadingTime }}<span class="sep">·</span><span>{{ . }} 分鐘</span>{{ end }}
     </div>
     <h1 class="post-title">{{ .Title }}</h1>

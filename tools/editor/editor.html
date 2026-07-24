@@ -120,6 +120,10 @@
         <label>副標</label>
         <input type="text" id="f-subtitle" placeholder="選填">
       </div>
+      <div class="field full">
+        <label>作者</label>
+        <input type="text" id="f-author" placeholder="選填，例如：王小明">
+      </div>
       <div class="field">
         <label>檔名 (slug，英文)</label>
         <input type="text" id="f-file" placeholder="cloud-feudalism">
@@ -201,7 +205,8 @@ async function loadList(){
     const row=document.createElement('div');
     row.className='post-row'+(active?' active':'');
     const tail = p.section==='posts' && p.draft ? '<span class="draft">草稿</span>' : '';
-    row.innerHTML='<div class="t">'+esc(p.title||p.file)+'</div><div class="m"><span>'+(p.date||'')+'</span>'+tail+'</div>';
+    const author = p.author ? '<span>'+esc(p.author)+'</span>' : '';
+    row.innerHTML='<div class="t">'+esc(p.title||p.file)+'</div><div class="m"><span>'+(p.date||'')+'</span>'+author+tail+'</div>';
     row.onclick=()=>openPost(p.section, p.file);
     list.appendChild(row);
   });
@@ -212,7 +217,7 @@ async function openPost(section, file){
   if(p.error){ setStatus('讀取失敗: '+p.error); return; }
   current={section, file};
   applySection(section);
-  $('#f-title').value=p.title||''; $('#f-subtitle').value=p.subtitle||'';
+  $('#f-title').value=p.title||''; $('#f-subtitle').value=p.subtitle||''; $('#f-author').value=p.author||'';
   $('#f-file').value=file.replace(/\.md$/,''); $('#f-date').value=p.date||'';
   $('#f-tags').value=(p.tags||[]).join(', '); $('#f-draft').checked=!!p.draft;
   editor.setMarkdown(p.body||''); loadList(); setStatus('已開啟');
@@ -220,7 +225,7 @@ async function openPost(section, file){
 function newItem(section){
   current=null;
   applySection(section);
-  $('#f-title').value=''; $('#f-subtitle').value=''; $('#f-file').value='';
+  $('#f-title').value=''; $('#f-subtitle').value=''; $('#f-author').value=''; $('#f-file').value='';
   $('#f-date').value=new Date().toISOString().slice(0,10);
   $('#f-tags').value=''; $('#f-draft').checked = section==='posts'; // 頁面預設發布
   editor.setMarkdown('');
@@ -231,7 +236,7 @@ async function save(){
   if(!file){ setStatus('請填檔名 slug'); $('#f-file').focus(); return; }
   const payload={
     section: curSection,
-    file, title:$('#f-title').value.trim(), subtitle:$('#f-subtitle').value.trim(),
+    file, title:$('#f-title').value.trim(), subtitle:$('#f-subtitle').value.trim(), author:$('#f-author').value.trim(),
     date:$('#f-date').value.trim(),
     draft: curSection==='posts' ? $('#f-draft').checked : false,
     tags: curSection==='posts' ? $('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean) : [],

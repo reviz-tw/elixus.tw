@@ -11,6 +11,7 @@
   <article class="post-item">
     <div class="post-meta">
       <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+      {{ with .Params.author }}<span class="sep">·</span><span>{{ . }}</span>{{ end }}
       {{ with .Params.tags }}
       <span class="post-tags">
         {{ range first 3 . }}<a href="{{ printf "tags/%s/" (. | urlize) | relURL }}">{{ . }}</a>{{ end }}

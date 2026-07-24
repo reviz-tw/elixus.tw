@@ -29,8 +29,9 @@ import (
 var assets embed.FS
 
 // All file operations are confined to these directories.
-//   postsDir   = content/posts  (section "posts")
-//   contentDir = content         (section "pages", e.g. about.md)
+//
+//	postsDir   = content/posts  (section "posts")
+//	contentDir = content         (section "pages", e.g. about.md)
 var (
 	postsDir        string
 	contentDir      string
@@ -115,6 +116,7 @@ type postMeta struct {
 	Section  string   `json:"section"`
 	File     string   `json:"file"`
 	Title    string   `json:"title"`
+	Author   string   `json:"author"`
 	Date     string   `json:"date"`
 	Draft    bool     `json:"draft"`
 	Tags     []string `json:"tags"`
@@ -179,6 +181,7 @@ type postPayload struct {
 	Section  string   `json:"section"`
 	File     string   `json:"file"`
 	Title    string   `json:"title"`
+	Author   string   `json:"author"`
 	Date     string   `json:"date"`
 	Draft    bool     `json:"draft"`
 	Tags     []string `json:"tags"`
@@ -204,6 +207,7 @@ func handleLoad(w http.ResponseWriter, r *http.Request) {
 		Section:  section,
 		File:     name,
 		Title:    fm.Title,
+		Author:   fm.Author,
 		Date:     fm.Date,
 		Draft:    fm.Draft,
 		Tags:     fm.Tags,
@@ -366,6 +370,8 @@ func parseFrontMatter(s string) (postMeta, string) {
 		switch k {
 		case "title":
 			fm.Title = unquote(v)
+		case "author":
+			fm.Author = unquote(v)
 		case "date":
 			fm.Date = trimDate(unquote(v))
 		case "draft":
@@ -383,6 +389,9 @@ func composeFrontMatter(p postPayload) string {
 	var b strings.Builder
 	b.WriteString("+++\n")
 	fmt.Fprintf(&b, "title = %q\n", p.Title)
+	if strings.TrimSpace(p.Author) != "" {
+		fmt.Fprintf(&b, "author = %q\n", p.Author)
+	}
 	fmt.Fprintf(&b, "date = %s\n", p.Date)
 	fmt.Fprintf(&b, "draft = %t\n", p.Draft)
 	b.WriteString("tags = [")

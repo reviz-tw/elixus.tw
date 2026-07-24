@@ -1,5 +1,6 @@
 +++
 title = "在被 AI 離職與不⼯作之間選擇躺平"
+author = "hcchien"
 date = 2026-06-28
 draft = false
 tags = ["AI", "網路科技"]
